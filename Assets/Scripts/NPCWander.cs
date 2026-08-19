@@ -3,38 +3,75 @@ using UnityEngine.AI;
 
 public class NPCWander : MonoBehaviour
 {
-    public float wanderRadius = 15f; 
-    public float wanderTimer = 4f; 
+    public float wanderRadius = 15f;
+    public float minWaitTime = 1f;
+    public float maxWaitTime = 4f;
 
     private NavMeshAgent agent;
-    private float timer;
+    private float waitTimer;
+    private bool isWaiting;
 
-    void OnEnable()
+    void Start()
     {
         agent = GetComponent<NavMeshAgent>();
-        timer = wanderTimer;
+        SetNewDestination();
     }
 
     void Update()
     {
-        timer += Time.deltaTime;
-
-        if (timer >= wanderTimer)
+        if (!agent.pathPending && agent.remainingDistance <= agent.stoppingDistance)
         {
-            Vector3 newPos = RandomNavSphere(transform.position, wanderRadius, -1);
-            agent.SetDestination(newPos);
-            timer = 0;
+            if (!isWaiting)
+            {
+                isWaiting = true;
+                waitTimer = Random.Range(minWaitTime, maxWaitTime);
+            }
+            else
+            {
+                waitTimer -= Time.deltaTime;
+                if (waitTimer <= 0)
+                {
+                    SetNewDestination();
+                }
+            }
         }
     }
 
-    public static Vector3 RandomNavSphere(Vector3 origin, float dist, int layermask)
+    void SetNewDestination()
     {
-        Vector3 randDirection = Random.insideUnitSphere * dist;
-        randDirection += origin;
+        Vector3 bestTarget = transform.position;
+        bool foundValidPoint = false;
 
-        NavMeshHit navHit;
-        NavMesh.SamplePosition(randDirection, out navHit, dist, layermask);
+        for (int i = 0; i < 30; i++)
+        {
+            Vector3 randomDirection;
 
-        return navHit.position;
+            if (i < 15)
+            {
+                randomDirection = (transform.forward + Random.insideUnitSphere * 0.8f).normalized * wanderRadius;
+            }
+            else
+            {
+                randomDirection = Random.insideUnitSphere * wanderRadius;
+            }
+
+            Vector3 randomPoint = transform.position + randomDirection;
+            NavMeshHit hit;
+
+            if (NavMesh.SamplePosition(randomPoint, out hit, 1.5f, agent.areaMask))
+            {
+                bestTarget = hit.position;
+                foundValidPoint = true;
+                break;
+            }
+        }
+
+        if (!foundValidPoint)
+        {
+            transform.Rotate(0, Random.Range(90f, 180f), 0);
+        }
+
+        agent.SetDestination(bestTarget);
+        isWaiting = false;
     }
 }

@@ -14,8 +14,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ItemData
   itemName: Apple
   icon: {fileID: 21300000, guid: 69a8417e2b2401242a9c6c39ee24be6c, type: 3}
-  description: Fr
+  description: 'Weight: 0.3kg
+
+    Date: 20/08/2025
+
+    Price: 10.000VND '
+  rarity: 0
   isStackable: 1
   maxStack: 50
-  buyPrice: 0
-  sellPrice: 0
