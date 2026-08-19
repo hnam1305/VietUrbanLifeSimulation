@@ -1,3 +1,4 @@
+
 # Unity generated
 [Ll]ibrary/
 [Tt]emp/
@@ -36,3 +37,14 @@ Thumbs.db
 
 Assets/Prototype Collection/
 Assets/Materials/
+
+# Bỏ qua file âm thanh và model 3D
+*.mp3
+*.wav
+*.ogg
+*.fbx
+*.obj
+*.blend
+*.tif
+*.psd
+*.tga

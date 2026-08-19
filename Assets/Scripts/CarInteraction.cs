@@ -2,15 +2,18 @@ using UnityEngine;
 
 public class CarInteraction : MonoBehaviour
 {
+    [Header("References")]
     public Transform player;
     public Transform driverSeat;
     public Transform exitPoint;
     public GameObject carCamera;
     public GameObject playerCamera;
 
+    [Header("Settings")]
+    public float interactionDistance = 3f;
+
+    private bool isPlayerInside = false;
     private PlayerCarController carController;
-    private bool isInCar = false;
-    private float interactionDistance = 3f;
 
     void Start()
     {
@@ -20,51 +23,69 @@ public class CarInteraction : MonoBehaviour
 
     void Update()
     {
+        if (player == null) return;
+
         float distance = Vector3.Distance(player.position, transform.position);
 
-        if (distance <= interactionDistance && Input.GetKeyDown(KeyCode.F))
+        if (distance <= interactionDistance)
         {
-            if (!isInCar)
+            if (Input.GetKeyDown(KeyCode.F))
             {
-                EnterCar();
-            }
-            else
-            {
-                ExitCar();
+                if (!isPlayerInside)
+                {
+                    EnterCar();
+                }
+                else
+                {
+                    ExitCar();
+                }
             }
         }
     }
 
     void EnterCar()
     {
-        isInCar = true;
-        carController.isDriving = true;
+        isPlayerInside = true;
 
-        player.gameObject.SetActive(false);
-        player.SetParent(transform);
+        if (player != null)
+        {
+            player.gameObject.SetActive(false);
+            player.SetParent(transform);
+        }
 
-        if (carCamera != null) carCamera.SetActive(true);
+        if (carController != null)
+        {
+            carController.isDriving = true;
+        }
+
         if (playerCamera != null) playerCamera.SetActive(false);
+        if (carCamera != null) carCamera.SetActive(true);
+
+        Debug.Log("Entered vehicle successfully.");
     }
 
     void ExitCar()
     {
-        isInCar = false;
-        carController.isDriving = false;
+        isPlayerInside = false;
 
-        player.SetParent(null);
-        if (exitPoint != null)
+        if (carController != null)
         {
-            player.position = exitPoint.position;
-        }
-        else
-        {
-            player.position = transform.position + transform.right * 2f;
+            carController.isDriving = false;
         }
 
-        player.gameObject.SetActive(true);
+        if (player != null)
+        {
+            player.SetParent(null);
+            if (exitPoint != null)
+            {
+                player.position = exitPoint.position;
+            }
+            player.gameObject.SetActive(true);
+        }
 
         if (carCamera != null) carCamera.SetActive(false);
         if (playerCamera != null) playerCamera.SetActive(true);
+
+        Debug.Log("Exited vehicle successfully.");
     }
 }
