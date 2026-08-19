@@ -27,8 +27,15 @@ public class PlayerCarController : MonoBehaviour
 
     private Rigidbody rb;
     private float currentSpeed = 0f;
-    private float turnInput;
+    private float displaySpeedKMH = 0f; // Tốc độ hiển thị đã được làm mượt
+    private int lastSpeedKMH = -1;
+
+    // Đưa các biến nhận Input ra ngoài để truyền từ Update sang FixedUpdate
+    private float moveInput;
+    private float steerInput;
     private bool isBraking;
+    private bool isBoosting;
+    private bool isSkidding;
 
     private bool leftSignalOn = false;
     private bool rightSignalOn = false;
@@ -43,21 +50,110 @@ public class PlayerCarController : MonoBehaviour
 
     void Update()
     {
+        // 1. NẾU KHÔNG LÁI XE: Cập nhật UI và mờ dần âm thanh
         if (!isDriving)
         {
             if (speedText != null) speedText.text = "";
-            HandleAudio(false);
+            HandleSkidMarks(false);
+
+            // Âm thanh mờ dần chuyển sang Update để mượt mà hơn
+            if (engineAudio != null)
+            {
+                engineAudio.pitch = Mathf.Lerp(engineAudio.pitch, 0f, Time.deltaTime * 2f);
+                engineAudio.volume = Mathf.Lerp(engineAudio.volume, 0f, Time.deltaTime * 2f);
+                if (engineAudio.volume < 0.05f && engineAudio.isPlaying) engineAudio.Stop();
+            }
             return;
         }
 
-        if (speedText != null)
-        {
-            float speedKMH = rb.linearVelocity.magnitude * 3.6f;
-            speedText.text = Mathf.RoundToInt(speedKMH) + " KM/H";
-        }
-
+        // 2. NẾU ĐANG LÁI XE: Chỉ đọc Input (Không dùng vật lý ở đây)
+        moveInput = Input.GetAxis("Vertical");
+        steerInput = Input.GetAxis("Horizontal");
+        isBoosting = Input.GetKey(KeyCode.LeftShift);
         isBraking = Input.GetKey(KeyCode.Space);
 
+        // Tính toán tốc độ lên UI
+        if (speedText != null)
+        {
+            float targetSpeedKMH = rb.linearVelocity.magnitude * 3.6f;
+
+            // Làm mượt tốc độ thay đổi theo thời gian thực (tránh nhảy số đột ngột)
+            displaySpeedKMH = Mathf.Lerp(displaySpeedKMH, targetSpeedKMH, Time.deltaTime * 10f);
+
+            int currentSpeedKMH = Mathf.RoundToInt(displaySpeedKMH);
+
+            // Chỉ cập nhật chữ khi giá trị làm tròn thay đổi thực sự
+            if (currentSpeedKMH != lastSpeedKMH)
+            {
+                if (currentSpeedKMH < 1) currentSpeedKMH = 0;
+
+                lastSpeedKMH = currentSpeedKMH;
+                speedText.text = currentSpeedKMH + " KM/H";
+            }
+        }
+
+        // Xử lý hiệu ứng Hình ảnh & Âm thanh ngay trong Update để không bị giật
+        isSkidding = isBraking && Mathf.Abs(currentSpeed) > 2f;
+        HandleSkidMarks(isSkidding);
+        HandleAudio(isSkidding);
+
+        // Xử lý Xi-nhan
+        HandleTurnSignals();
+    }
+
+    void FixedUpdate()
+    {
+        // 3. XỬ LÝ VẬT LÝ: Chỉ dùng các biến Input đã lưu để di chuyển Rigidbody
+        if (!isDriving)
+        {
+            // Xe đang đỗ: Trượt từ từ cho đến khi dừng hẳn
+            currentSpeed = Mathf.MoveTowards(currentSpeed, 0f, brakeForce * Time.fixedDeltaTime);
+
+            if (currentSpeed <= 0.1f)
+            {
+                currentSpeed = 0f;
+                rb.isKinematic = true; // Khóa cứng
+            }
+            else
+            {
+                Vector3 stopVel = transform.forward * currentSpeed;
+                rb.linearVelocity = new Vector3(stopVel.x, rb.linearVelocity.y, stopVel.z);
+            }
+            return;
+        }
+
+        // --- KHI ĐANG LÁI XE ---
+        if (rb.isKinematic) rb.isKinematic = false;
+
+        float targetSpeed = isBoosting ? boostSpeed : normalSpeed;
+
+        // Tính toán Gia tốc & Phanh
+        if (isBraking)
+        {
+            currentSpeed = Mathf.MoveTowards(currentSpeed, 0f, brakeForce * Time.fixedDeltaTime);
+        }
+        else
+        {
+            currentSpeed = Mathf.MoveTowards(currentSpeed, targetSpeed * moveInput, acceleration * Time.fixedDeltaTime);
+        }
+
+        // Xoay xe
+        if (Mathf.Abs(currentSpeed) > 0.1f)
+        {
+            float direction = Mathf.Sign(currentSpeed);
+            // Dùng steerInput thay vì nhận trực tiếp Input trong FixedUpdate
+            Quaternion turnRotation = Quaternion.Euler(0f, steerInput * turnSpeed * direction * Time.fixedDeltaTime, 0f);
+            rb.MoveRotation(rb.rotation * turnRotation);
+        }
+
+        // Tiến/Lùi
+        Vector3 moveVelocity = transform.forward * currentSpeed;
+        rb.linearVelocity = new Vector3(moveVelocity.x, rb.linearVelocity.y, moveVelocity.z);
+    }
+
+    // Tách riêng logic xi-nhan cho code gọn gàng
+    void HandleTurnSignals()
+    {
         if (Input.GetKeyDown(KeyCode.Q))
         {
             leftSignalOn = !leftSignalOn;
@@ -89,70 +185,6 @@ public class PlayerCarController : MonoBehaviour
         }
     }
 
-    void FixedUpdate()
-    {
-        if (!isDriving)
-        {
-            // Xe đang đỗ: Trượt từ từ cho đến khi dừng hẳn
-            currentSpeed = Mathf.MoveTowards(currentSpeed, 0f, brakeForce * Time.fixedDeltaTime);
-
-            if (currentSpeed <= 0.1f)
-            {
-                // Khi xe đã dừng hẳn -> Khóa cứng xe thành "bức tường"
-                currentSpeed = 0f;
-                rb.isKinematic = true;
-            }
-            else
-            {
-                Vector3 stopVel = transform.forward * currentSpeed;
-                rb.linearVelocity = new Vector3(stopVel.x, rb.linearVelocity.y, stopVel.z);
-            }
-
-            HandleSkidMarks(false);
-
-            if (engineAudio != null)
-            {
-                engineAudio.pitch = Mathf.Lerp(engineAudio.pitch, 0f, Time.fixedDeltaTime * 2f);
-                engineAudio.volume = Mathf.Lerp(engineAudio.volume, 0f, Time.fixedDeltaTime * 2f);
-                if (engineAudio.volume < 0.05f && engineAudio.isPlaying) engineAudio.Stop();
-            }
-            return;
-        }
-
-        // --- KHI ĐANG LÁI XE ---
-        // Mở khóa vật lý nếu xe đang bị đóng băng
-        if (rb.isKinematic) rb.isKinematic = false;
-
-        float verticalInput = Input.GetAxis("Vertical");
-        turnInput = Input.GetAxis("Horizontal") * turnSpeed;
-        bool isBoosting = Input.GetKey(KeyCode.LeftShift);
-
-        float targetSpeed = isBoosting ? boostSpeed : normalSpeed;
-
-        if (isBraking)
-        {
-            currentSpeed = Mathf.MoveTowards(currentSpeed, 0f, brakeForce * Time.fixedDeltaTime);
-        }
-        else
-        {
-            currentSpeed = Mathf.MoveTowards(currentSpeed, targetSpeed * verticalInput, acceleration * Time.fixedDeltaTime);
-        }
-
-        if (Mathf.Abs(currentSpeed) > 0.1f)
-        {
-            float direction = Mathf.Sign(currentSpeed);
-            Quaternion turnRotation = Quaternion.Euler(0f, turnInput * direction * Time.fixedDeltaTime, 0f);
-            rb.MoveRotation(rb.rotation * turnRotation);
-        }
-
-        Vector3 moveVelocity = transform.forward * currentSpeed;
-        rb.linearVelocity = new Vector3(moveVelocity.x, rb.linearVelocity.y, moveVelocity.z);
-
-        bool isSkidding = isBraking && Mathf.Abs(currentSpeed) > 2f;
-        HandleSkidMarks(isSkidding);
-        HandleAudio(isSkidding);
-    }
-
     void HandleSkidMarks(bool state)
     {
         foreach (TrailRenderer trail in skidMarks)
@@ -161,14 +193,13 @@ public class PlayerCarController : MonoBehaviour
         }
     }
 
-    void HandleAudio(bool isSkidding)
+    void HandleAudio(bool skiddingStatus)
     {
         if (engineAudio != null)
         {
             if (!engineAudio.isPlaying) engineAudio.Play();
 
             engineAudio.volume = Mathf.Lerp(engineAudio.volume, 1f, Time.deltaTime * 5f);
-
             float speedRatio = Mathf.Abs(currentSpeed) / boostSpeed;
             float targetPitch = Mathf.Lerp(minEnginePitch, maxEnginePitch, speedRatio);
             engineAudio.pitch = Mathf.Lerp(engineAudio.pitch, targetPitch, Time.deltaTime * 5f);
@@ -176,13 +207,13 @@ public class PlayerCarController : MonoBehaviour
 
         if (skidAudio != null)
         {
-            if (isSkidding)
+            if (skiddingStatus && !skidAudio.isPlaying)
             {
-                if (!skidAudio.isPlaying) skidAudio.Play();
+                skidAudio.Play();
             }
-            else
+            else if (!skiddingStatus && skidAudio.isPlaying)
             {
-                if (skidAudio.isPlaying) skidAudio.Stop();
+                skidAudio.Stop();
             }
         }
     }

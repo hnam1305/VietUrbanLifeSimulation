@@ -1,5 +1,6 @@
 using UnityEngine;
 
+[RequireComponent(typeof(PlayerCarController))]
 public class MotorcycleInteraction : MonoBehaviour
 {
     [Header("References")]
@@ -15,12 +16,16 @@ public class MotorcycleInteraction : MonoBehaviour
     private bool isPlayerMounted = false;
     private PlayerCarController bikeController;
 
+    // Cached squared distance to save CPU power
+    private float sqrInteractionDistance;
+
     void Start()
     {
-        // Automatically find the controller on this object
         bikeController = GetComponent<PlayerCarController>();
 
-        // Ensure the bike camera is disabled at start
+        // Pre-calculate the squared distance once at startup
+        sqrInteractionDistance = interactionDistance * interactionDistance;
+
         if (motorcycleCamera != null) motorcycleCamera.SetActive(false);
     }
 
@@ -28,20 +33,25 @@ public class MotorcycleInteraction : MonoBehaviour
     {
         if (player == null) return;
 
-        float distance = Vector3.Distance(player.position, transform.position);
-
-        // Check for 'F' key input when within interaction range
-        if (distance <= interactionDistance)
+        // OPTIMIZATION: Separate the logic to avoid doing math while driving
+        if (isPlayerMounted)
         {
+            // If already on the bike, just listen for the dismount key
             if (Input.GetKeyDown(KeyCode.F))
             {
-                if (!isPlayerMounted)
+                DismountBike();
+            }
+        }
+        else
+        {
+            // Check distance using sqrMagnitude (much faster than Vector3.Distance)
+            float currentSqrDistance = (player.position - transform.position).sqrMagnitude;
+
+            if (currentSqrDistance <= sqrInteractionDistance)
+            {
+                if (Input.GetKeyDown(KeyCode.F))
                 {
                     MountBike();
-                }
-                else
-                {
-                    DismountBike();
                 }
             }
         }
@@ -55,16 +65,13 @@ public class MotorcycleInteraction : MonoBehaviour
         {
             player.gameObject.SetActive(false);
             player.SetParent(transform);
+            // Optional: Snap player strictly to the seat position if you re-enable the mesh later
+            player.position = driverSeat != null ? driverSeat.position : transform.position;
         }
 
-        if (bikeController != null)
-        {
-            bikeController.isDriving = true;
-        }
+        if (bikeController != null) bikeController.isDriving = true;
 
-        if (playerCamera != null) playerCamera.SetActive(false);
-        if (motorcycleCamera != null) motorcycleCamera.SetActive(true);
-
+        SwitchCameras(false);
         Debug.Log("Mounted the motorcycle.");
     }
 
@@ -72,24 +79,23 @@ public class MotorcycleInteraction : MonoBehaviour
     {
         isPlayerMounted = false;
 
-        if (bikeController != null)
-        {
-            bikeController.isDriving = false;
-        }
+        if (bikeController != null) bikeController.isDriving = false;
 
         if (player != null)
         {
             player.SetParent(null);
-            if (exitPoint != null)
-            {
-                player.position = exitPoint.position;
-            }
+            if (exitPoint != null) player.position = exitPoint.position;
             player.gameObject.SetActive(true);
         }
 
-        if (motorcycleCamera != null) motorcycleCamera.SetActive(false);
-        if (playerCamera != null) playerCamera.SetActive(true);
-
+        SwitchCameras(true);
         Debug.Log("Dismounted the motorcycle.");
+    }
+
+    // Clean code helper method to toggle cameras instantly
+    private void SwitchCameras(bool isPlayerCamActive)
+    {
+        if (playerCamera != null) playerCamera.SetActive(isPlayerCamActive);
+        if (motorcycleCamera != null) motorcycleCamera.SetActive(!isPlayerCamActive);
     }
 }
