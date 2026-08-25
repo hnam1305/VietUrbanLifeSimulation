@@ -19,9 +19,9 @@ MonoBehaviour:
   isStackable: 0
   maxStack: 0
   itemScale: {x: 1, y: 1, z: 1}
-  brand: 
-  displayType: 
-  unitPrice: 0
-  itemsPerBox: 0
-  shelfCapacity: 0
+  brand: Vinamilk
+  displayType: Fresh
+  unitPrice: 2
+  itemsPerBox: 16
+  shelfCapacity: 12
   cratePrefab: {fileID: 4984758318327259148, guid: 78aab99baef1afb41bc3ebe693bd70fe, type: 3}

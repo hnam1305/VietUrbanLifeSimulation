@@ -8,22 +8,21 @@ public class GameManager : MonoBehaviour
 
     [Header("Game Progression")]
     public int currentDay = 1;
-    public float dayDuration = 10f;
-    private float currentTime;
+    public float realSecondsPerDay = 60f;
 
-    [Header("Tài chính")]
+    [Header("Financial System")]
     public int currentMoney = 10000;
     public int dailyCost = 1500;
 
-    [Header("Giao diện UI")]
+    [Header("UI References")]
     public TextMeshProUGUI dayTextUI;
     public TextMeshProUGUI moneyTextUI;
     public TextMeshProUGUI timeTextUI;
     public GameObject gameOverPanel;
-
     public TextMeshProUGUI interactTextUI;
 
     private bool isGameOver = false;
+    private float dayStartTime;
 
     private void Awake()
     {
@@ -32,10 +31,19 @@ public class GameManager : MonoBehaviour
 
     private void Start()
     {
-        currentTime = dayDuration;
+        // TỰ ĐỘNG TÌM KIẾM CÁC Ô TEXT THEO TÊN NẾU BẠN CHƯA KÉO THẢ
+        if (timeTextUI == null)
+        {
+            GameObject foundText = GameObject.Find("Text_DateTime");
+            if (foundText != null)
+            {
+                timeTextUI = foundText.GetComponent<TextMeshProUGUI>();
+            }
+        }
+
+        dayStartTime = Time.time;
         if (gameOverPanel != null) gameOverPanel.SetActive(false);
         UpdateUI();
-
         HideInteractText();
     }
 
@@ -43,29 +51,29 @@ public class GameManager : MonoBehaviour
     {
         if (isGameOver) return;
 
-        currentTime -= Time.deltaTime;
+        float elapsedSeconds = Time.time - dayStartTime;
 
-        if (currentTime <= 0 || Input.GetKeyDown(KeyCode.T))
+        if (elapsedSeconds >= realSecondsPerDay || Input.GetKeyDown(KeyCode.T))
         {
-            NextDay();
+            AdvanceToNextDay();
         }
 
         UpdateUI();
     }
 
-    private void NextDay()
+    private void AdvanceToNextDay()
     {
         currentDay++;
         currentMoney -= dailyCost;
-        currentTime = dayDuration;
+        dayStartTime = Time.time;
 
         if (currentMoney < 0)
         {
-            GameOver();
+            TriggerGameOver();
         }
     }
 
-    private void GameOver()
+    private void TriggerGameOver()
     {
         isGameOver = true;
         Time.timeScale = 0f;
@@ -85,7 +93,27 @@ public class GameManager : MonoBehaviour
 
         if (timeTextUI != null)
         {
-            timeTextUI.text = "Time: " + Mathf.Ceil(currentTime).ToString() + "s";
+            float elapsedSeconds = Time.time - dayStartTime;
+
+            // Dùng trực tiếp số giây thực tế nhân với hệ số tốc độ (ví dụ 1 giây thực tế = 10 phút trong game)
+            // Cách này giúp thời gian nhích lên từng phút rất rõ ràng ngay trước mắt bạn
+            float totalMinutes = 480f + (elapsedSeconds * 10f);
+
+            int currentTotalMins = Mathf.FloorToInt(totalMinutes) % 1440;
+
+            int hour24 = currentTotalMins / 60;
+            int minute = currentTotalMins % 60;
+
+            string ampm = hour24 >= 12 ? "PM" : "AM";
+            int hour12 = hour24 % 12;
+            if (hour12 == 0) hour12 = 12;
+
+            string timeString = $"{hour12:00}:{minute:00} {ampm}";
+
+            System.DateTime baseDate = new System.DateTime(2026, 2, 9).AddDays(currentDay - 1);
+            string dateString = baseDate.ToString("yyyy.MM.dd");
+
+            timeTextUI.text = timeString + "\n" + dateString;
         }
     }
 
@@ -106,3 +134,4 @@ public class GameManager : MonoBehaviour
         }
     }
 }
+//

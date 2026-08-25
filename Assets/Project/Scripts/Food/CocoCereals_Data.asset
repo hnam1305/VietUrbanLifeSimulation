@@ -21,7 +21,7 @@ MonoBehaviour:
   itemScale: {x: 1, y: 1, z: 1}
   brand: Calbee
   displayType: Shelf
-  unitPrice: 15
-  itemsPerBox: 6
+  unitPrice: 3
+  itemsPerBox: 16
   shelfCapacity: 7
   cratePrefab: {fileID: 5874872850781194382, guid: 542d0ed627cca954eaa67669857d9926, type: 3}
