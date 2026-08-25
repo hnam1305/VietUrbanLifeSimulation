@@ -24,15 +24,16 @@ public class ItemData : ScriptableObject
     public int maxStack;
 
     [Header("Display Settings")]
-    public Vector3 itemScale = Vector3.one; // Tỷ lệ riêng khi đặt lên kệ (mặc định là 1,1,1)
+    public Vector3 itemScale = Vector3.one; // Tỷ lệ riêng khi hiển thị
+    public Vector3 shelfScale = Vector3.one; // Tỷ lệ chuẩn khi đặt lên kệ (Scale 1,1,1 hoặc to đẹp như gốc)
 
-    [Header("Market UI Settings ")]
-    public string brand;            // Nhãn hiệu (VD: Bio, Eco, Bourlait...)
-    public string displayType;      // Loại kệ (Gõ chữ "Shelf" hoặc "Fridge")
-    public float unitPrice;         // Giá nhập của 1 hộp lẻ (VD: 1.99)
-    public int itemsPerBox;         // Số lượng hộp có trong 1 thùng (VD: 12)
-    public int shelfCapacity;       // Số lượng hộp tối đa xếp được trên 1 kệ (VD: 16)
+    [Header("Market UI Settings")]
+    public string brand;            // Brand name (e.g., Bio, Eco, Bourlait...)
+    public string displayType;      // Shelf type (e.g., "Shelf" or "Fridge")
+    public float unitPrice;         // Unit price for a single box (e.g., 1.99)
+    public int itemsPerBox;         // Number of boxes inside one crate (e.g., 12)
+    public int shelfCapacity;       // Max capacity of boxes on a shelf (e.g., 16)
 
     [Header("Market Delivery Settings")]
-    public GameObject cratePrefab; // Prefab của thùng hàng sẽ rớt ra ngoài vỉa hè khi mua
+    public GameObject cratePrefab;  // Prefab of the crate spawned when ordered
 }

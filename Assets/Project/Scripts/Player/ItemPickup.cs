@@ -17,7 +17,7 @@ public class ItemPickup : MonoBehaviour
             // Bấm E hoặc Click Chuột Trái (0) đều thực hiện lệnh Tương Tác
             if (Input.GetKeyDown(KeyCode.E) || Input.GetMouseButtonDown(0))
             {
-                TryPickUp(); // Gọi hàm này để bắn tia ngắm kiểm tra đồ vật hoặc máy tính
+                TryPickUp();
             }
         }
         // 2. KHI ĐANG CẦM THÙNG HÀNG TRÊN TAY
@@ -33,10 +33,16 @@ public class ItemPickup : MonoBehaviour
             {
                 TryPlaceItemOnShelf();
             }
+            // =====================================
+            // MỚI: Click Chuột Phải để rút đồ từ kệ về thùng
+            // =====================================
+            else if (Input.GetMouseButtonDown(1))
+            {
+                TryTakeItemFromShelf();
+            }
         }
     }
 
-    // Custom function to handle placing logic
     private void TryPlaceItemOnShelf()
     {
         // Cancel if the held item has no products or is empty
@@ -49,21 +55,56 @@ public class ItemPickup : MonoBehaviour
             if (targetShelf != null)
             {
                 Transform spot = targetShelf.GetAvailableSlot();
-                if (spot != null) // Proceed if there is an empty slot
+                if (spot != null)
                 {
-                    // Decrease product count inside the crate
                     currentItem.productCount--;
-
-                    // Cập nhật hiển thị trong thùng
                     currentItem.UpdateVisuals();
 
-                    // Spawn the product and assign it to the shelf with animation
                     GameObject newProduct = Instantiate(currentItem.productPrefab);
-
-                    // Truyền thêm currentItem.itemData vào để lấy tỷ lệ (scale) riêng biệt
                     targetShelf.AddItemToShelf(newProduct, holdPosition, currentItem.itemData);
 
-                    Debug.Log("Item placed successfully! Remaining in crate: " + currentItem.productCount);
+                    Debug.Log("Đã xếp lên kệ! Trong thùng còn: " + currentItem.productCount);
+                }
+            }
+        }
+    }
+
+    // =====================================
+    // HÀM MỚI: XỬ LÝ LẤY ĐỒ TỪ KỆ VỀ THÙNG
+    // =====================================
+    private void TryTakeItemFromShelf()
+    {
+        Ray ray = playerCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0));
+        if (Physics.Raycast(ray, out RaycastHit hit, pickupRange, interactableLayer))
+        {
+            Shelf targetShelf = hit.collider.GetComponent<Shelf>();
+            if (targetShelf != null)
+            {
+                // Kiểm tra xem thùng có còn chỗ chứa không (Dựa vào số lượng tối đa của visualItems)
+                if (currentItem.productCount < currentItem.visualItems.Length)
+                {
+                    // Lấy item 3D từ trên kệ xuống
+                    GameObject retrievedItem = targetShelf.RemoveItemFromShelf();
+
+                    if (retrievedItem != null)
+                    {
+                        // Phá hủy object 3D vừa lấy xuống vì nó đã chui tọt vào thùng
+                        Destroy(retrievedItem);
+
+                        // Tăng số lượng hàng trong thùng lên và cập nhật hình ảnh
+                        currentItem.productCount++;
+                        currentItem.UpdateVisuals();
+
+                        Debug.Log("Đã rút về thùng! Số lượng hiện tại: " + currentItem.productCount);
+                    }
+                    else
+                    {
+                        Debug.Log("Kệ đang trống, không có gì để lấy!");
+                    }
+                }
+                else
+                {
+                    Debug.Log("Thùng đã đầy, không thể chứa thêm!");
                 }
             }
         }
@@ -76,15 +117,13 @@ public class ItemPickup : MonoBehaviour
 
         if (Physics.Raycast(ray, out hit, pickupRange, interactableLayer))
         {
-            // 1. Kiểm tra xem thứ mình đang nhìn có phải là cái Máy Tính không?
             ComputerInteract computer = hit.collider.GetComponent<ComputerInteract>();
             if (computer != null)
             {
-                computer.OpenComputer(); // Mở UI máy tính
-                return; // Dừng lại luôn
+                computer.OpenComputer();
+                return;
             }
 
-            // 2. Nếu không phải máy tính thì kiểm tra xem có phải Thùng Hàng không?
             Interactable item = hit.collider.GetComponent<Interactable>();
             if (item != null)
             {

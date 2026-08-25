@@ -44,11 +44,11 @@ public class OrderSystem : MonoBehaviour
 
             // Sinh ra cái thùng hàng ở vị trí giao hàng
             Instantiate(selectedItem.cratePrefab, deliveryPoint.position, deliveryPoint.rotation);
-            Debug.Log("Đã giao thành công: " + selectedItem.itemName);
+            Debug.Log("Successfully ordered: " + selectedItem.itemName);
         }
         else
         {
-            Debug.Log("Không đủ tiền để mua!");
+            Debug.Log("Not enough money to buy!");
         }
     }
 
@@ -75,6 +75,19 @@ public class OrderSystem : MonoBehaviour
         }
         else
         {
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+        }
+    }
+
+    // Hàm dùng để tắt giao diện khi bấm nút X
+    public void CloseComputerUI()
+    {
+        if (computerUIPanel != null)
+        {
+            computerUIPanel.SetActive(false);
+
+            // Khóa chuột lại để nhân vật tiếp tục di chuyển
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
         }

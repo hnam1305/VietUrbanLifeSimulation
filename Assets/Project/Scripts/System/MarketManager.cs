@@ -11,7 +11,7 @@ public class MarketManager : MonoBehaviour
 
     [Header("Delivery Settings")]
     public Transform deliveryPoint;
-    public float fixedGroundY = 1.5f; // Độ cao cố định so với mặt đất để thùng hàng không bị tụt âm sâu
+    public float fixedGroundY = 1.5f; // Fixed height above the ground to prevent crates from sinking
 
     // Cart dictionary: stores ItemData and the number of boxes ordered
     private Dictionary<ItemData, int> cart = new Dictionary<ItemData, int>();
@@ -55,17 +55,17 @@ public class MarketManager : MonoBehaviour
     // Hook this to your Checkout Button OnClick()
     public void Checkout()
     {
-        Debug.Log("[Checkout] Nút Checkout đã được bấm!");
+        Debug.Log("[Checkout] Checkout button was clicked!");
 
         if (cart.Count == 0)
         {
-            Debug.Log("[Checkout] Thất bại: Giỏ hàng đang trống trơn!");
+            Debug.Log("[Checkout] Failed: Cart is empty!");
             return;
         }
 
         if (playerMoney >= totalCartPrice)
         {
-            Debug.Log($"[Checkout] Đủ tiền ({playerMoney} >= {totalCartPrice}). Tiến hành spawn thùng hàng...");
+            Debug.Log($"[Checkout] Sufficient funds ({playerMoney} >= {totalCartPrice}). Spawning crates...");
             playerMoney -= totalCartPrice;
 
             int spawnIndex = 0;
@@ -78,23 +78,26 @@ public class MarketManager : MonoBehaviour
                 {
                     if (item.cratePrefab != null && deliveryPoint != null)
                     {
-                        // Dùng tọa độ X, Z của DeliveryPoint, nhưng ép độ cao Y bằng fixedGroundY cộng dồn
+                        // Use X and Z from DeliveryPoint, but stack Y using fixedGroundY + offset
                         Vector3 spawnPos = new Vector3(
                             deliveryPoint.position.x,
                             fixedGroundY + (spawnIndex * 0.6f),
                             deliveryPoint.position.z
                         );
 
+                        // Spawn the crate prefab directly. 
+                        // Note: Configure inside-crate items' scale directly inside the Crate Prefab to avoid position offset bugs.
                         Instantiate(item.cratePrefab, spawnPos, deliveryPoint.rotation);
                         spawnIndex++;
-                        Debug.Log($"[Checkout] Đã spawn thành công thùng: {item.itemName} tại vị trí {spawnPos}");
+
+                        Debug.Log($"[Checkout] Successfully spawned crate: {item.itemName} at position {spawnPos}");
                     }
                     else
                     {
                         if (item.cratePrefab == null)
-                            Debug.LogError($"[Checkout] Lỗi: Sản phẩm '{item.itemName}' chưa được kéo Prefab thùng hàng vào ô Crate Prefab!");
+                            Debug.LogError($"[Checkout] Error: Product '{item.itemName}' is missing its Crate Prefab reference!");
                         if (deliveryPoint == null)
-                            Debug.LogError("[Checkout] Lỗi: Chưa kéo điểm Delivery Point vào GameManager!");
+                            Debug.LogError("[Checkout] Error: Delivery Point is not assigned in GameManager!");
                     }
                 }
             }
@@ -102,11 +105,11 @@ public class MarketManager : MonoBehaviour
             // Clear the cart after a successful purchase
             cart.Clear();
             CalculateTotal();
-            Debug.Log("[Checkout] Thanh toán thành công và đã làm sạch giỏ hàng!");
+            Debug.Log("[Checkout] Purchase successful and cart cleared!");
         }
         else
         {
-            Debug.Log($"[Checkout] Không đủ tiền! Cần {totalCartPrice}, nhưng bạn chỉ có {playerMoney}");
+            Debug.Log($"[Checkout] Not enough money! Required: {totalCartPrice}, but player has: {playerMoney}");
         }
     }
 

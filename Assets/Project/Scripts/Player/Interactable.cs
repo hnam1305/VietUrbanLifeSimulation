@@ -7,7 +7,7 @@ public class Interactable : MonoBehaviour
     public string promptMessage = "Pick up box";
 
     [Header("Item Data Reference")]
-    public ItemData itemData; // <-- BIẾN MỚI THÊM: Liên kết tới file dữ liệu ItemData chứa customScale
+    public ItemData itemData; // Liên kết tới file dữ liệu ItemData chứa shelfScale
 
     [Header("Crate Inventory")]
     public GameObject productPrefab;
@@ -52,7 +52,7 @@ public class Interactable : MonoBehaviour
         // Nếu hộp chưa mở thì chạy Animation Mở
         if (!isOpened)
         {
-            StopAllCoroutines(); // Dừng các animation đang chạy dở (nếu có)
+            StopAllCoroutines();
             StartCoroutine(OpenFlapsAnimation());
             isOpened = true;
         }
@@ -81,6 +81,35 @@ public class Interactable : MonoBehaviour
         }
     }
 
+    // ==========================================
+    // HÀM MỚI: BỐC SẢN PHẨM RA KHỎI THÙNG ĐỂ ĐẶT LÊN KỆ
+    // ==========================================
+    public void TakeItemOut(Transform spawnPosition)
+    {
+        if (productCount > 0 && itemData != null && itemData.cratePrefab != null)
+        {
+            productCount--;
+            UpdateVisuals();
+
+            // Sinh ra item thực tế trên tay nhân vật hoặc tại vị trí chỉ định
+            // Thay vì dùng cratePrefab (thùng), ta phải dùng productPrefab (hộp sữa/ngũ cốc thực tế)
+            GameObject spawnedItem = Instantiate(productPrefab, spawnPosition.position, spawnPosition.rotation);
+
+            // Gán lại scale chuẩn từ ItemData
+            spawnedItem.transform.SetParent(null);
+            if (itemData != null)
+            {
+                spawnedItem.transform.localScale = itemData.shelfScale;
+            }
+
+            // Tách khỏi thùng (nếu cần) và gán lại scale chuẩn bằng kích thước gốc (shelfScale)
+            spawnedItem.transform.SetParent(null);
+            spawnedItem.transform.localScale = itemData.shelfScale;
+
+            Debug.Log($"[Crate] Took item out. Remaining count: {productCount}");
+        }
+    }
+
     private IEnumerator OpenFlapsAnimation()
     {
         float elapsed = 0f;
@@ -91,7 +120,6 @@ public class Interactable : MonoBehaviour
         Quaternion f3Start = flap3 != null ? flap3.localRotation : Quaternion.identity;
         Quaternion f4Start = flap4 != null ? flap4.localRotation : Quaternion.identity;
 
-        // Góc đích là góc Đóng cộng thêm độ Mở
         Quaternion f1End = f1Closed * Quaternion.Euler(flap1OpenRot);
         Quaternion f2End = f2Closed * Quaternion.Euler(flap2OpenRot);
         Quaternion f3End = f3Closed * Quaternion.Euler(flap3OpenRot);
